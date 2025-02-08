@@ -57,7 +57,12 @@ class PowerSupplyMonitoring:
         # Bind event to select COM port
         self.com_port_combobox.bind(
             "<<ComboboxSelected>>", self.on_com_port_selected)
-        self.com_port_combobox.pack(fill="x", padx=20)
+        self.com_port_combobox.grid(row=0, column=0, sticky="ew", padx=10)
+
+        self.refresh_button = ttk.Button(
+            com_frame, text="⟳", command=self.refresh_serial, width=1)
+        self.refresh_button.grid(
+            row=0, column=1, padx=10, sticky="w", ipadx=2, ipady=0)
 
         # Create a frame for the buttons
         button_frame = ttk.Frame(self.root)
@@ -157,8 +162,8 @@ class PowerSupplyMonitoring:
         # Plot voltage curves based on checkbox states
         for i in range(0, 3):
             if self.display_check_states[i].get():
-                self.ax_voltage.plot(self.__voltage_current_buffer.time_stamps_voltage[i], self.__voltage_current_buffer.data_voltage[i], marker='o',
-                                     label=f'Voltage {i+1} (V)', color=self.voltage_colors[i])
+                self.ax_voltage.plot(self.__voltage_current_buffer.time_stamps_voltage[i], self.__voltage_current_buffer.data_voltage[
+                                     i], marker='o', label=f'Voltage {i+1} (V)', color=self.voltage_colors[i])
                 is_any_curve_displayed = True
 
         if is_any_curve_displayed:
@@ -180,6 +185,8 @@ class PowerSupplyMonitoring:
 
     def start_monitoring(self):
         """Start data collection in a separate thread."""
+        self.ani.event_source.stop()
+        self.update_data_enabled = False
         self.__voltage_current_buffer.clear_data()
         self.__voltage_current_buffer.set_start_time_now()
 
@@ -201,6 +208,11 @@ class PowerSupplyMonitoring:
             self.pause_button.config(text="Play")
             self.ani.event_source.stop()
 
+    def refresh_serial(self):
+        """re-fill the combobox with the open com port"""
+        available_ports = self.__keithley_serial_api.get_available_port()
+        self.com_port_combobox.config(values=available_ports)
+
     def on_com_port_selected(self, event):
         """Handle the selection of a COM port from the drop-down list."""
         selected_port = self.com_port_combobox.get()
@@ -208,9 +220,9 @@ class PowerSupplyMonitoring:
         idn = self.__keithley_serial_api.get_idn()
 
         if init_success:
-            if idn == "":
+            if "2231A-30-3" not in idn:
                 self.alim_info_label.config(
-                    text=f"{selected_port} isn't connected to a Keitheley power supply")
+                    text=f"{selected_port} isn't connected to a Keitheley 2231A-30-3 power supply")
             else:
                 self.start_button.config(state="normal")
                 self.alim_info_label.config(text=idn)
