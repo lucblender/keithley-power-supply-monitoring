@@ -1,6 +1,8 @@
 import time
 import threading
 import tkinter as tk
+import ctypes
+import sys
 from tkinter import ttk
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
@@ -14,6 +16,7 @@ class PowerSupplyMonitoring:
     update_data_enabled = False
     voltage_colors = ['#1f77b4', '#76b7b2', '#00429d']
     current_colors = ['#d62728', '#ff7f0e', '#800000']
+    killed = False
 
     def __init__(self, keithley_serial_api: KeithleySerialApi, voltage_current_buffer: VoltageCurrentBuffer):
         """Create a simple, improved UI with Tkinter."""
@@ -22,6 +25,7 @@ class PowerSupplyMonitoring:
         self.__keithley_serial_api = keithley_serial_api
 
         self.root = tk.Tk()
+        self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
         self.root.title("Keithley 2231A-30-3 Monitor")
 
         # Apply a style to ttk widgets
@@ -93,14 +97,39 @@ class PowerSupplyMonitoring:
         self.fig.canvas.manager.set_window_title(
             'Keithley 2231A-30-3 Monitoring')
 
-        self.ani = FuncAnimation(self.fig, self.animate, interval=200)
-
         thread = threading.Thread(target=self.update_data, daemon=True)
         thread.start()
 
+        screen_width, screen_height = self.get_screen_size()
+
+        # Set Tkinter window to the left half
+        self.tk_width = screen_width // 2
+        self.tk_height = screen_height - 100
+        fig_manager = plt.get_current_fig_manager()
+        fig_manager.window.wm_geometry(
+            f"{self.tk_width}x{self.tk_height}+{self.tk_width}+0")
+        self.fig.canvas.mpl_connect('close_event', self.on_closing)
+
+        self.ani = FuncAnimation(self.fig, self.animate, interval=200)
+
     def run_app(self):
         plt.show()
+
         self.root.mainloop()
+
+    def get_screen_size(self):
+        """Returns the correct screen width and height in pixels."""
+        if sys.platform == "win32":
+            user32 = ctypes.windll.user32
+            user32.SetProcessDPIAware()  # Ensure DPI awareness for this call
+            width = user32.GetSystemMetrics(0)  # Correct screen width
+            height = user32.GetSystemMetrics(1)  # Correct screen height
+        else:
+            # macOS/Linux: Tkinter works fine for getting screen size
+            width = self.root.winfo_screenwidth()
+            height = self.root.winfo_screenheight()
+
+        return width, height
 
     def update_data(self):
         while True:
@@ -109,21 +138,28 @@ class PowerSupplyMonitoring:
             else:
                 time.sleep(0.1)
 
+    def on_closing(self, _=None):
+        """callback for tk closing"""
+        if not self.killed:
+            self.killed = True
+            self.__keithley_serial_api.close()
+            plt.close(self.fig)
+            self.root.destroy()
+
     def animate(self, i):
         """Update the graphs dynamically without duplicating curves."""
+        self.ax_voltage.clear()  # Clears subplots
+        self.ax_current.clear()
 
-        self.root.update()
-        self.ax_voltage.clear()  # Clears only this subplot
-        self.ax_current.clear()  # Clears only this subplot
-        is_curve = False
+        is_any_curve_displayed = False
         # Plot voltage curves based on checkbox states
         for i in range(0, 3):
             if self.display_check_states[i].get():
-                self.ax_voltage.plot(voltage_current_buffer.time_stamps_voltage[i], voltage_current_buffer.data_voltage[i], marker='o',
+                self.ax_voltage.plot(self.__voltage_current_buffer.time_stamps_voltage[i], self.__voltage_current_buffer.data_voltage[i], marker='o',
                                      label=f'Voltage {i+1} (V)', color=self.voltage_colors[i])
-                is_curve = True
+                is_any_curve_displayed = True
 
-        if is_curve:
+        if is_any_curve_displayed:
             self.ax_voltage.legend()
         self.ax_voltage.grid(True)
         self.ax_voltage.set_ylabel("Voltage (V)")
@@ -131,10 +167,10 @@ class PowerSupplyMonitoring:
         # Plot current curves based on checkbox states
         for i in range(0, 3):
             if self.display_check_states[i].get():
-                self.ax_current.plot(voltage_current_buffer.time_stamps_current[i], voltage_current_buffer.data_current[i], marker='o',
+                self.ax_current.plot(self.__voltage_current_buffer.time_stamps_current[i], self.__voltage_current_buffer.data_current[i], marker='o',
                                      label=f'Current {i+1} (mA)', color=self.current_colors[i])
 
-        if is_curve:
+        if is_any_curve_displayed:
             self.ax_current.legend()
         self.ax_current.grid(True)
         self.ax_current.set_xlabel("Time (s)")
@@ -183,5 +219,3 @@ data_buffer = VoltageCurrentBuffer(serial_api)
 
 power_supply_monitoring = PowerSupplyMonitoring(serial_api, data_buffer)
 power_supply_monitoring.run_app()
-
-serial_api.close()
