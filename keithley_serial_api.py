@@ -42,6 +42,10 @@ class KeithleySerialApi:
         else:
             return None
 
+    def get_idn(self):
+        """get information about the power supply"""
+        return self.__send_command("*IDN?")
+
     def get_voltage(self, channel):
         """Send measure votlage command"""
         return self.__send_command(f'MEASure:VOLTage? CH{channel+1}')
