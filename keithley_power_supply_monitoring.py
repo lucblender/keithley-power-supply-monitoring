@@ -1,15 +1,13 @@
-import serial
 import time
 import threading
 import tkinter as tk
 from tkinter import ttk
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
-import serial.tools.list_ports  # To list available COM ports
 
-# Serial configuration
-SERIAL_PORT = 'COM3'  # Update this if needed
-BAUD_RATE = 9600
+from keithley_serial_api import KeithleySerialApi
+
+keithleySerialApi = KeithleySerialApi()
 
 data_voltage = [[],[],[]]
 data_current = [[],[],[]]
@@ -35,15 +33,6 @@ pause_button = None
 status_label = None
 ani = None
 
-def get_available_ports():
-    """Get a list of available COM ports."""
-    ports = serial.tools.list_ports.comports()
-    return [port.device for port in ports]
-
-def send_command(command):
-    """Send SCPI command to the power supply."""
-    ser.write(f"{command}\n".encode())
-    return ser.readline().decode().strip()
 
 def update_data():
     """Continuously update voltage and current readings."""
@@ -53,9 +42,9 @@ def update_data():
             voltages = []
             currents = []
             for i in range(0,3):
-                voltages.append(send_command('MEASure:VOLTage? CH'+str(i+1)))
-                currents.append(send_command('MEASure:CURRent? CH'+str(i+1)))
-
+                voltages.append(keithleySerialApi.get_voltage(i))
+                currents.append(keithleySerialApi.get_current(i))
+            print(voltages)
             for i in range(0,3):
                 try:
                     v = float(voltages[i])
@@ -64,9 +53,9 @@ def update_data():
                     data_voltage[i].append(v)
                     data_current[i].append(c)
                     success = True
-                except ValueError:
-                    print("error")
-                    pass
+                except Exception as e:
+                    print("error", e)
+
             if success:
                 time_stamps.append(time.time() - start_time)
         else:
@@ -134,20 +123,15 @@ def pause_monitoring():
 
 def on_com_port_selected(event):
     """Handle the selection of a COM port from the drop-down list."""
-    global ser
     selected_port = com_port_combobox.get()
-    if selected_port:
-        try:
-            # close com port if it is open and try to open another
-            if(ser != None):
-                if ser.isOpen():
-                    ser.close()
-            ser = serial.Serial(selected_port, BAUD_RATE, timeout=2)
-            print(f"Connected to {selected_port}")
-            start_button.config(state="normal")
-        except serial.SerialException as e:
-            print(f"Error connecting to {selected_port}: {e}")
+    init_success = keithleySerialApi.init_serial(selected_port)
 
+    if init_success:
+        start_button.config(state="normal")
+
+
+#class KeithleyPowerSupplyMonitoring:
+    #def __init__(self):
 def create_ui():
     """Create a simple, improved UI with Tkinter."""
     global root, fig, ax1, ax2, com_port_combobox, start_button, pause_button, status_label, ani
@@ -173,7 +157,7 @@ def create_ui():
     com_frame = ttk.Frame(root)
     com_frame.grid(row=1, column=0, pady=10, sticky="ew")
 
-    available_ports = get_available_ports()  # Get list of available COM ports
+    available_ports = keithleySerialApi.get_available_port()  # Get list of available COM ports
     com_port_combobox = ttk.Combobox(com_frame, values=available_ports, state="readonly", font=("Arial",12))
     com_port_combobox.set("Select COM Port")  # Set default text
     com_port_combobox.bind("<<ComboboxSelected>>", on_com_port_selected)  # Bind event to select COM port
@@ -220,4 +204,4 @@ def create_ui():
 # Run UI
 create_ui()
 
-ser.close()
+keithleySerialApi.close()
