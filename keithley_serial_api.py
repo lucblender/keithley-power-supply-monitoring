@@ -1,5 +1,8 @@
+"""Provide a class to send message to the power supply using pyserial"""
+
 import serial
 import serial.tools.list_ports  # To list available COM ports
+
 
 class KeithleySerialApi:
     """Class to connect to keithley power supply with pyserial"""
@@ -17,19 +20,22 @@ class KeithleySerialApi:
                 if self.ser is not None:
                     if self.ser.isOpen():
                         self.ser.close()
-                self.ser = serial.Serial(selected_port, self.BAUD_RATE, timeout=2)
+                self.ser = serial.Serial(
+                    selected_port, self.BAUD_RATE, timeout=2)
                 print(f"Connected to {selected_port}")
                 return True
             except serial.SerialException as e:
                 print(f"Error connecting to {selected_port}: {e}")
                 return False
+        else:
+            return False
 
     def get_available_port(self):
         """Get a list of available COM ports."""
         ports = serial.tools.list_ports.comports()
         return [port.device for port in ports]
 
-    def __send_command(self,command):
+    def __send_command(self, command):
         """Send SCPI command to the power supply."""
         if self.ser.isOpen():
             self.ser.write(f"{command}\n".encode())
@@ -37,7 +43,7 @@ class KeithleySerialApi:
             try:
                 decode = answer.decode().strip()
                 return decode
-            except Exception as e:
+            except UnicodeDecodeError:
                 return None
         else:
             return None

@@ -1,3 +1,5 @@
+"""Provide main application using tk and matplotlib to display the voltage and current of the 3 channel of the keithely 2231A-30-3"""
+
 import time
 import threading
 import tkinter as tk
@@ -12,6 +14,7 @@ from voltage_current_buffer import VoltageCurrentBuffer
 
 
 class PowerSupplyMonitoring:
+    """Main class managing the GUI for the keithley power supply monitoring app"""
 
     update_data_enabled = False
     voltage_colors = ['#1f77b4', '#76b7b2', '#00429d']
@@ -19,8 +22,6 @@ class PowerSupplyMonitoring:
     killed = False
 
     def __init__(self, keithley_serial_api: KeithleySerialApi, voltage_current_buffer: VoltageCurrentBuffer):
-        """Create a simple, improved UI with Tkinter."""
-
         self.__voltage_current_buffer = voltage_current_buffer
         self.__keithley_serial_api = keithley_serial_api
 
@@ -78,7 +79,7 @@ class PowerSupplyMonitoring:
 
         self.alim_info_label = ttk.Label(
             self.root, text="No power supply connected", font=("Arial", 8))
-        self.alim_info_label.grid(row=4, column=0, pady=5, sticky="ew")
+        self.alim_info_label.grid(row=5, column=0, columnspan=2, sticky="ew")
 
         # Create a frame for the checkboxes (aligned to the right)
         checkbox_frame = ttk.Frame(self.root)
@@ -113,8 +114,8 @@ class PowerSupplyMonitoring:
         self.ani = FuncAnimation(self.fig, self.animate, interval=200)
 
     def run_app(self):
+        """launch tk and matplotlib window"""
         plt.show()
-
         self.root.mainloop()
 
     def get_screen_size(self):
@@ -132,6 +133,7 @@ class PowerSupplyMonitoring:
         return width, height
 
     def update_data(self):
+        """to use in a thread, update data in loop"""
         while True:
             if self.update_data_enabled:
                 self.__voltage_current_buffer.update_data()
@@ -167,8 +169,8 @@ class PowerSupplyMonitoring:
         # Plot current curves based on checkbox states
         for i in range(0, 3):
             if self.display_check_states[i].get():
-                self.ax_current.plot(self.__voltage_current_buffer.time_stamps_current[i], self.__voltage_current_buffer.data_current[i], marker='o',
-                                     label=f'Current {i+1} (mA)', color=self.current_colors[i])
+                self.ax_current.plot(self.__voltage_current_buffer.time_stamps_current[i], self.__voltage_current_buffer.data_current[
+                                     i], marker='o', label=f'Current {i+1} (mA)', color=self.current_colors[i])
 
         if is_any_curve_displayed:
             self.ax_current.legend()
@@ -178,7 +180,6 @@ class PowerSupplyMonitoring:
 
     def start_monitoring(self):
         """Start data collection in a separate thread."""
-
         self.__voltage_current_buffer.clear_data()
         self.__voltage_current_buffer.set_start_time_now()
 
@@ -189,6 +190,7 @@ class PowerSupplyMonitoring:
         self.ani.event_source.start()
 
     def pause_monitoring(self):
+        """Pause and resume monitoring depending of previous state"""
         self.update_data_enabled = not self.update_data_enabled
         if self.update_data_enabled:
             self.status_label.config(text="Status: running")
@@ -214,8 +216,9 @@ class PowerSupplyMonitoring:
                 self.alim_info_label.config(text=idn)
 
 
-serial_api = KeithleySerialApi()
-data_buffer = VoltageCurrentBuffer(serial_api)
+if __name__ == "__main__":
+    serial_api = KeithleySerialApi()
+    data_buffer = VoltageCurrentBuffer(serial_api)
 
-power_supply_monitoring = PowerSupplyMonitoring(serial_api, data_buffer)
-power_supply_monitoring.run_app()
+    power_supply_monitoring = PowerSupplyMonitoring(serial_api, data_buffer)
+    power_supply_monitoring.run_app()
