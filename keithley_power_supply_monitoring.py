@@ -193,6 +193,7 @@ class PowerSupplyMonitoring:
         self.update_data_enabled = True
         self.pause_button.config(state="normal")
         self.start_button.config(text="Restart")
+        self.pause_button.config(text="Pause")
         self.status_label.config(text="Status: running")
         self.ani.event_source.start()
 
