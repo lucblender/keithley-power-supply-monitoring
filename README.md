@@ -10,9 +10,14 @@ The user interface is done with tkinter and matplotlib.
 
 ## Requirement
 
+Install package manually:
 ```
 pip install matplotlib
 pip install pyserial
+```
+Install package with the provided requirement.txt file:
+```
+pip install -r requirements.txt
 ```
 
 ## Launch
@@ -20,3 +25,7 @@ pip install pyserial
 ```
 python keithley_power_supply_monitoring.py
 ```
+
+## UI
+
+![screenshot-001](/pictures/screenshot-001.png)

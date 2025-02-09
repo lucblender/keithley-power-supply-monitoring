@@ -7,6 +7,7 @@ import ctypes
 import sys
 from tkinter import ttk
 import matplotlib.pyplot as plt
+from matplotlib.widgets import Slider
 from matplotlib.animation import FuncAnimation
 
 from keithley_serial_api import KeithleySerialApi
@@ -100,6 +101,11 @@ class PowerSupplyMonitoring:
 
         self.fig, (self.ax_voltage, self.ax_current) = plt.subplots(
             2, 1, figsize=(5, 4))
+
+        ax_slider = plt.axes([0.25, 0.01, 0.5, 0.02])  # Position of slider
+        y_slider = Slider(ax_slider, 'Y-Offset', -2, 2, valinit=1, dragging=True)
+        y_slider.on_changed(self.test)
+
         self.fig.canvas.manager.set_window_title(
             'Keithley 2231A-30-3 Monitoring')
 
@@ -117,6 +123,9 @@ class PowerSupplyMonitoring:
         self.fig.canvas.mpl_connect('close_event', self.on_closing)
 
         self.ani = FuncAnimation(self.fig, self.animate, interval=200)
+
+    def test(self):
+        self.fig.canvas.draw_idle()
 
     def run_app(self):
         """launch tk and matplotlib window"""
